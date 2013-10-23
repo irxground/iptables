@@ -5,6 +5,16 @@
 
 class IpTables
 
+  MAP = {
+    input: 'i',
+    output: 'o',
+    src_addr: 's',
+    dst_addr: 'd',
+    src_port: 'sport',
+    dst_port: 'dport',
+    protocol: 'p'
+  }
+
   def self.repository
     @repository ||= {}
   end
@@ -53,14 +63,10 @@ class IpTables
     end
     options.each do |k, v|
       case k
-      when :protocol
-        buff << " -p " << v
-      when :source
-        buff << " -s " << v
+      when *MAP.keys
+        buff << " -" << MAP[k] << " " << v.to_s
       when :target
         buff << " -j " << v.to_s.upcase
-      when :port
-        buff << " -dport "<< v.to_s
       when :state
         buff << " -m state --state " << Array(v).join(',')
       else
@@ -96,20 +102,27 @@ end
 
 IpTables.repository[:minimal] = IpTables.new do
   set_policy input: 'DROP', output: 'DROP', forward: 'DROP'
-  scope chain: :input do
-    accept state: %w(ESTABLISHED RELATED)
-    accept protocol: 'icmp' # support ping
-  end
+
+  # to use 127.0.0.1
+  accept chain: :input,   input: 'lo'
+  accept chain: :output, output: 'lo'
+
+  # support ping
+  accept chain:  :input, protocol: 'icmp'
+  accept chain: :output, protocol: 'icmp'
+  
 end
 
 IpTables.repository[:default] = IpTables.new do
   set_policy input: 'DROP', output: 'ACCEPT', forward: 'DROP'
 
   scope chain: :input do
-    scope source: '192.168.0.0/16' do # accept local IP
+    accept state: %w(ESTABLISHED RELATED)
+
+    scope src_addr: '192.168.0.0/16' do # accept local IP
       accept protocol: 'tcp'
       accept protocol: 'udp'
     end
-    accept protocol: 'tcp', port: 22 # SSH
+    accept protocol: 'tcp', dst_port: 22 # SSH
   end
 end

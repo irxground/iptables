@@ -63,9 +63,9 @@ describe IpTables do
       ]
     end
 
-    it 'support :port' do
+    it 'support :dst_port' do
       IpTables.new {
-        accept chain: :input, protocol: 'tcp', port: 80
+        accept chain: :input, protocol: 'tcp', dst_port: 80
       }.should write [
         'iptables -A INPUT -p tcp -dport 80 -j ACCEPT'
       ]
@@ -73,7 +73,7 @@ describe IpTables do
 
     it 'support :target' do
       IpTables.new {
-        accept chain: :input, protocol: 'tcp', source: '192.168.0.0/16'
+        accept chain: :input, protocol: 'tcp', src_addr: '192.168.0.0/16'
       }.should write [
         'iptables -A INPUT -p tcp -s 192.168.0.0/16 -j ACCEPT'
       ]
@@ -91,11 +91,11 @@ describe IpTables do
   describe '#append' do
     specify do
       expect {
-        IpTables.new { append(port: 80) }
+        IpTables.new { append(dst_port: 80) }
       }.to raise_error(ArgumentError)
 
       expect {
-        IpTables.new { append(chain: 'INPUT', port: 80) }
+        IpTables.new { append(chain: 'INPUT', dst_port: 80) }
       }.not_to raise_error
     end
   end
@@ -106,8 +106,8 @@ describe IpTables do
         scope chain: :input do
           accept protocol: 'icmp'
           scope protocol: 'tcp' do
-            accept port: 22
-            accept port: 80
+            accept dst_port: 22
+            accept dst_port: 80
           end
         end
       }.should write [
@@ -141,13 +141,13 @@ describe IpTables do
       base = IpTables.new { accept chain: :input, protocol: 'icmp' }
       IpTables.new {
         mixin base
-        accept chain: :input, protocol: 'tcp', port: 80
+        accept chain: :input, protocol: 'tcp', dst_port: 80
       }.should write [
         'iptables -A INPUT -p icmp -j ACCEPT',
         'iptables -A INPUT -p tcp -dport 80 -j ACCEPT'
       ]
       IpTables.new {
-        accept chain: :input, protocol: 'tcp', port: 80
+        accept chain: :input, protocol: 'tcp', dst_port: 80
         mixin base
       }.should write [
         'iptables -A INPUT -p tcp -dport 80 -j ACCEPT',
@@ -164,7 +164,7 @@ describe IpTables do
         end
         IpTables.new {
           mixin :rep_key
-          accept chain: :input, protocol: 'tcp', port: 80
+          accept chain: :input, protocol: 'tcp', dst_port: 80
         }.should write [
           'iptables -A INPUT -p icmp -j ACCEPT',
           'iptables -A INPUT -p tcp -dport 80 -j ACCEPT'
