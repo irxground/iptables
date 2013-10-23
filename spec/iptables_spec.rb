@@ -119,24 +119,17 @@ describe IpTables do
   end
 
   describe '#mixin' do
-    let :policy do
-      IpTables.new { set_policy input: 'ACCEPT' }
-    end
-    let :chain do
-      IpTables.new { accept chain: :input, protocol: 'icmp' }
-    end
-
     it 'should override policy' do
-      x = policy
+      base = IpTables.new { set_policy input: 'ACCEPT' }
       IpTables.new {
         set_policy output: 'ACCEPT'
-        mixin x
+        mixin base
       }.should write [
         'iptables -F',
         'iptables -P INPUT ACCEPT'
       ]
       IpTables.new {
-        mixin x
+        mixin base
         set_policy output: 'ACCEPT'
       }.should write [
         'iptables -F',
@@ -145,9 +138,9 @@ describe IpTables do
     end
 
     it 'should append chain' do
-      c = chain
+      base = IpTables.new { accept chain: :input, protocol: 'icmp' }
       IpTables.new {
-        mixin c
+        mixin base
         accept chain: :input, protocol: 'tcp', port: 80
       }.should write [
         'iptables -A INPUT -p icmp -j ACCEPT',
@@ -155,7 +148,7 @@ describe IpTables do
       ]
       IpTables.new {
         accept chain: :input, protocol: 'tcp', port: 80
-        mixin c
+        mixin base
       }.should write [
         'iptables -A INPUT -p tcp -dport 80 -j ACCEPT',
         'iptables -A INPUT -p icmp -j ACCEPT'
@@ -163,18 +156,12 @@ describe IpTables do
     end
 
     describe '.repository' do
-      def backup_repository
-        r = IpTables.repository
-        backup = r.dup
-        yield
-      rescue
-        r.clear
-        r.merge! backup
-      end
       around(:each){ |example| backup_repository(&example) }
 
       it 'mixin from repository' do
-        IpTables.repository[:rep_key] = chain
+        IpTables.repository[:rep_key] = IpTables.new do
+          accept chain: :input, protocol: 'icmp'
+        end
         IpTables.new {
           mixin :rep_key
           accept chain: :input, protocol: 'tcp', port: 80
@@ -183,26 +170,36 @@ describe IpTables do
           'iptables -A INPUT -p tcp -dport 80 -j ACCEPT'
         ]
       end
+
+      def backup_repository
+        backup = IpTables.repository
+        yield
+      ensure
+        IpTables.repository.clear.merge! backup
+      end
     end
   end
 end
 
 RSpec::Matchers.define :write do |expect|
   match do |actual|
-    lines = actual.write("").each_line.to_a.map(&:strip)
-    (lines.size == expect.size) &&
-      lines.zip(expect).all?{ |act, exp| (act == exp) }
+    check_error(actual, expect) == nil
   end
 
   failure_message_for_should do |actual|
+    check_error(actual, expect)
+  end
+
+  def check_error(actual, expect)
     lines = actual.write("").each_line.to_a.map(&:strip)
-    if lines.size != expect.size
-      "expect #{expect.size} lines, but was #{lines.size} line."
-    else
-      lines.zip(expect).map.with_index do |(act, exp), ix|
-        "index #{ix}:\n  expect  #{exp.inspect}\n  but was #{act.inspect}" if
-          act != exp
-      end.compact.first
+
+    return "expect #{expect.size} lines, but was #{lines.size} line." if
+      lines.size != expect.size
+
+    lines.zip(expect).each_with_index do |(act, exp), ix|
+      return "index #{ix}:\n  expect  #{exp.inspect}\n  but was #{act.inspect}" if
+        act != exp
     end
+    return nil
   end
 end

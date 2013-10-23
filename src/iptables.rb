@@ -21,7 +21,7 @@ class IpTables
       @policy = []
       return
     end
-    @policy = options.each_with_object(["-F"]) do |(chain, target), dst|
+    @policy = options.each_with_object %w(-F) do |(chain, target), dst|
       dst << "-P #{chain.to_s.upcase} #{target.to_s.upcase}"
     end
     @policy
