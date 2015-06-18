@@ -117,7 +117,10 @@ IpTables.repository[:default] = IpTables.new do
   set_policy input: 'DROP', output: 'ACCEPT', forward: 'DROP'
 
   scope chain: :input do
-    accept state: %w(ESTABLISHED RELATED)
+    accept state: %w(ESTABLISHED RELATED) # keep all connection
+
+    accept protocol: 'icmp' # ping
+    accept input: 'lo' # accept loopback (localhost -> localhost)
 
     scope src_addr: '192.168.0.0/16' do # accept local IP
       accept protocol: 'tcp'

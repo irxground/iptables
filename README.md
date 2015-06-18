@@ -14,6 +14,13 @@
 ruby src/http_server_sample.rb
 ```
 
+```sh
+# apply configuration
+ruby src/http_server_sample.rb > ip.sh
+bash ip.sh
+```
+
+
 後は適時、[`http_server_sample.rb`](src/http_server_sample.rb)を修正するなり、新規ファイルを作成するなりしてください。
 
 ### 使い方の詳細
