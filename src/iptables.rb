@@ -1,8 +1,3 @@
-#
-# encoding utf-8
-# Copyright(c) 2012-2013 ACCESS CO., LTD. All rights reserved.
-#
-
 class IpTables
 
   MAP = {
